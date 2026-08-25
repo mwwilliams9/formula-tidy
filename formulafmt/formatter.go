@@ -1,6 +1,7 @@
 // Package formulafmt normalizes the text of a spreadsheet formula: it fixes
 // function name casing, cell reference casing, and whitespace around
-// operators, commas and ranges, without changing what the formula computes.
+// operators, commas, ranges and sheet-qualified references, without
+// changing what the formula computes.
 package formulafmt
 
 import (
@@ -21,6 +22,8 @@ const (
 	kComma
 	kColon
 	kSemicolon
+	kBang
+	kSheetName
 )
 
 type token struct {
@@ -85,14 +88,14 @@ func needsSpace(toks []token, unary []bool, i int) bool {
 	prev, cur := toks[i-1], toks[i]
 
 	switch cur.kind {
-	case kRParen, kComma, kSemicolon, kColon:
+	case kRParen, kComma, kSemicolon, kColon, kBang:
 		return false
 	}
 	if cur.kind == kOp && cur.text == "%" {
 		return false
 	}
 	switch prev.kind {
-	case kColon, kLParen:
+	case kColon, kLParen, kBang:
 		return false
 	}
 	if cur.kind == kLParen && (prev.kind == kIdent || prev.kind == kLParen) {
@@ -109,8 +112,8 @@ func needsSpace(toks []token, unary []bool, i int) bool {
 }
 
 // normalizeIdent upper-cases function names, cell references and boolean
-// literals, and leaves defined names and table names as the author wrote
-// them, since their casing may be significant.
+// literals, and leaves defined names, table names and sheet names as the
+// author wrote them, since their casing may be significant.
 func normalizeIdent(text string, i int, toks []token) string {
 	upper := strings.ToUpper(text)
 	if i+1 < len(toks) && toks[i+1].kind == kLParen {
@@ -156,6 +159,31 @@ func tokenize(s string) ([]token, error) {
 				return nil, fmt.Errorf("unterminated string literal starting at position %d", start)
 			}
 			toks = append(toks, token{kString, string(r[start:i])})
+
+		case c == '\'':
+			start := i
+			i++
+			closed := false
+			for i < n {
+				if r[i] == '\'' {
+					if i+1 < n && r[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					i++
+					closed = true
+					break
+				}
+				i++
+			}
+			if !closed {
+				return nil, fmt.Errorf("unterminated sheet name starting at position %d", start)
+			}
+			toks = append(toks, token{kSheetName, string(r[start:i])})
+
+		case c == '!':
+			toks = append(toks, token{kBang, "!"})
+			i++
 
 		case c == '(':
 			toks = append(toks, token{kLParen, "("})

@@ -19,6 +19,11 @@ func TestFormat(t *testing.T) {
 		{"=$a$1+b2", "=$A$1 + B2"},
 		{"=true", "=TRUE"},
 		{"=MyNamedRange+1", "=MyNamedRange + 1"},
+		{"=sheet1!a1+1", "=sheet1!A1 + 1"},
+		{"=Sheet1!A1+B2", "=Sheet1!A1 + B2"},
+		{"=sum(sheet1!a1:a10)", "=SUM(sheet1!A1:A10)"},
+		{"='My Sheet'!a1+1", "='My Sheet'!A1 + 1"},
+		{"='O''Brien'!a1", "='O''Brien'!A1"},
 	}
 
 	for _, c := range cases {
@@ -38,6 +43,7 @@ func TestFormatErrors(t *testing.T) {
 		"",
 		`="unterminated`,
 		"=1+@2",
+		"='unterminated sheet name!a1",
 	}
 	for _, in := range cases {
 		if _, err := Format(in); err == nil {

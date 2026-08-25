@@ -11,12 +11,13 @@ formula-tidy rewrites a formula's text into one consistent shape:
 - function names are upper-cased (`sum(` -> `SUM(`)
 - cell references are upper-cased (`a1` -> `A1`, `$b$2` -> `$B$2`)
 - boolean literals are upper-cased (`true` -> `TRUE`)
-- whitespace around operators, commas and ranges is normalized
+- whitespace around operators, commas, ranges and sheet references is
+  normalized (`Sheet1 ! a1` -> `Sheet1!A1`)
 - a leading `=` is added if it's missing
 
 It does not touch what's inside string literals, and it deliberately leaves
-defined names and table names as written, since their casing can matter and
-isn't safe to guess at.
+defined names, table names and sheet names as written, since their casing
+can matter and isn't safe to guess at.
 
 ## Usage
 
@@ -29,6 +30,9 @@ $ echo '=sum( a1 : a10 )+average(b1,b2,B3)' | formula-tidy
 
 $ echo '=if(a1>10,"big","small")' | formula-tidy
 =IF(A1 > 10, "big", "small")
+
+$ echo "=sum(sheet1!a1:a10)+'Q3 Actuals'!b2" | formula-tidy
+=SUM(sheet1!A1:A10) + 'Q3 Actuals'!B2
 ```
 
 As a library:
@@ -50,7 +54,6 @@ go install github.com/mwwilliams9/formula-tidy@latest
 
 This is an early version. It does not yet handle:
 
-- sheet-qualified references (`Sheet1!A1`)
 - array literals (`{1,2;3,4}`)
 - R1C1-style references
 
