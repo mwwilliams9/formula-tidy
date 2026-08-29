@@ -13,6 +13,7 @@ formula-tidy rewrites a formula's text into one consistent shape:
 - boolean literals are upper-cased (`true` -> `TRUE`)
 - whitespace around operators, commas, ranges and sheet references is
   normalized (`Sheet1 ! a1` -> `Sheet1!A1`)
+- array literals are normalized the same way (`{1,2;3,4}` -> `{1, 2; 3, 4}`)
 - a leading `=` is added if it's missing
 
 It does not touch what's inside string literals, and it deliberately leaves
@@ -54,7 +55,6 @@ go install github.com/mwwilliams9/formula-tidy@latest
 
 This is an early version. It does not yet handle:
 
-- array literals (`{1,2;3,4}`)
 - R1C1-style references
 
 Formulas that use any of these are rejected with an error rather than

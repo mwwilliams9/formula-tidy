@@ -24,6 +24,8 @@ const (
 	kSemicolon
 	kBang
 	kSheetName
+	kLBrace
+	kRBrace
 )
 
 type token struct {
@@ -77,7 +79,7 @@ func isUnaryContext(toks []token, i int) bool {
 		return true
 	}
 	switch toks[i-1].kind {
-	case kLParen, kComma, kSemicolon, kColon, kOp:
+	case kLParen, kComma, kSemicolon, kColon, kOp, kLBrace:
 		return true
 	}
 	return false
@@ -88,14 +90,14 @@ func needsSpace(toks []token, unary []bool, i int) bool {
 	prev, cur := toks[i-1], toks[i]
 
 	switch cur.kind {
-	case kRParen, kComma, kSemicolon, kColon, kBang:
+	case kRParen, kComma, kSemicolon, kColon, kBang, kRBrace:
 		return false
 	}
 	if cur.kind == kOp && cur.text == "%" {
 		return false
 	}
 	switch prev.kind {
-	case kColon, kLParen, kBang:
+	case kColon, kLParen, kBang, kLBrace:
 		return false
 	}
 	if cur.kind == kLParen && (prev.kind == kIdent || prev.kind == kLParen) {
@@ -199,6 +201,12 @@ func tokenize(s string) ([]token, error) {
 			i++
 		case c == ';':
 			toks = append(toks, token{kSemicolon, ";"})
+			i++
+		case c == '{':
+			toks = append(toks, token{kLBrace, "{"})
+			i++
+		case c == '}':
+			toks = append(toks, token{kRBrace, "}"})
 			i++
 
 		case strings.ContainsRune(opChars, c):

@@ -24,6 +24,10 @@ func TestFormat(t *testing.T) {
 		{"=sum(sheet1!a1:a10)", "=SUM(sheet1!A1:A10)"},
 		{"='My Sheet'!a1+1", "='My Sheet'!A1 + 1"},
 		{"='O''Brien'!a1", "='O''Brien'!A1"},
+		{"={1,2;3,4}", "={1, 2; 3, 4}"},
+		{"=sum({1,2,3})", "=SUM({1, 2, 3})"},
+		{"={-1,2}", "={-1, 2}"},
+		{"={1,2}+{3,4}", "={1, 2} + {3, 4}"},
 	}
 
 	for _, c := range cases {
