@@ -5,6 +5,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -13,11 +14,14 @@ import (
 )
 
 func main() {
-	args := os.Args[1:]
+	diffOnly := flag.Bool("diff", false, "print only formulas whose formatting changed")
+	flag.Parse()
+	args := flag.Args()
+
 	hadErr := false
 
 	if len(args) == 0 {
-		hadErr = processReader(os.Stdin, "stdin")
+		hadErr = processReader(os.Stdin, "stdin", *diffOnly)
 	} else {
 		for _, path := range args {
 			f, err := os.Open(path)
@@ -26,7 +30,7 @@ func main() {
 				hadErr = true
 				continue
 			}
-			if processReader(f, path) {
+			if processReader(f, path, *diffOnly) {
 				hadErr = true
 			}
 			f.Close()
@@ -41,7 +45,9 @@ func main() {
 // processReader formats one formula per line, printing each result to
 // stdout and any per-line error to stderr, and keeps going on failure so a
 // single bad line in a large file doesn't stop the rest from being formatted.
-func processReader(r *os.File, name string) bool {
+// With diffOnly set, lines whose formatted form matches the input as given
+// are dropped instead of printed, so the output is just what would change.
+func processReader(r *os.File, name string, diffOnly bool) bool {
 	scanner := bufio.NewScanner(r)
 	hadErr := false
 	line := 0
@@ -49,14 +55,20 @@ func processReader(r *os.File, name string) bool {
 	for scanner.Scan() {
 		line++
 		text := scanner.Text()
-		if strings.TrimSpace(text) == "" {
-			fmt.Println()
+		trimmed := strings.TrimSpace(text)
+		if trimmed == "" {
+			if !diffOnly {
+				fmt.Println()
+			}
 			continue
 		}
 		out, err := formulafmt.Format(text)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s:%d: %v\n", name, line, err)
 			hadErr = true
+			continue
+		}
+		if diffOnly && out == trimmed {
 			continue
 		}
 		fmt.Println(out)

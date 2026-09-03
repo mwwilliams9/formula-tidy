@@ -36,6 +36,14 @@ $ echo "=sum(sheet1!a1:a10)+'Q3 Actuals'!b2" | formula-tidy
 =SUM(sheet1!A1:A10) + 'Q3 Actuals'!B2
 ```
 
+Pass `-diff` to only print formulas that would change, which is useful for
+scanning a large export for the handful of lines actually worth looking at:
+
+```
+$ printf '=SUM(A1:A10)\n=sum(a1,a2)\n' | formula-tidy -diff
+=SUM(A1, A2)
+```
+
 As a library:
 
 ```go
