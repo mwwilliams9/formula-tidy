@@ -44,6 +44,14 @@ $ printf '=SUM(A1:A10)\n=sum(a1,a2)\n' | formula-tidy -diff
 =SUM(A1, A2)
 ```
 
+Pass `-w` to rewrite each given file in place instead of printing to stdout.
+This only works with file arguments, not stdin, and can't be combined with
+`-diff`. If any line in a file fails to parse, that file is left untouched:
+
+```
+$ formula-tidy -w export.txt
+```
+
 As a library:
 
 ```go

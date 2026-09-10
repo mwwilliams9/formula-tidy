@@ -5,8 +5,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -15,25 +17,28 @@ import (
 
 func main() {
 	diffOnly := flag.Bool("diff", false, "print only formulas whose formatting changed")
+	write := flag.Bool("w", false, "rewrite each file in place instead of printing to stdout")
 	flag.Parse()
 	args := flag.Args()
+
+	if *write && *diffOnly {
+		fmt.Fprintln(os.Stderr, "-w and -diff cannot be used together")
+		os.Exit(1)
+	}
+	if *write && len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "-w requires at least one file argument")
+		os.Exit(1)
+	}
 
 	hadErr := false
 
 	if len(args) == 0 {
-		hadErr = processReader(os.Stdin, "stdin", *diffOnly)
+		hadErr = processReader(os.Stdin, os.Stdout, "stdin", *diffOnly)
 	} else {
 		for _, path := range args {
-			f, err := os.Open(path)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
-				hadErr = true
-				continue
-			}
-			if processReader(f, path, *diffOnly) {
+			if processFile(path, *diffOnly, *write) {
 				hadErr = true
 			}
-			f.Close()
 		}
 	}
 
@@ -42,12 +47,47 @@ func main() {
 	}
 }
 
-// processReader formats one formula per line, printing each result to
-// stdout and any per-line error to stderr, and keeps going on failure so a
-// single bad line in a large file doesn't stop the rest from being formatted.
-// With diffOnly set, lines whose formatted form matches the input as given
-// are dropped instead of printed, so the output is just what would change.
-func processReader(r *os.File, name string, diffOnly bool) bool {
+// processFile formats one file. With write set, the formatted result
+// replaces the file's contents in place instead of going to stdout; a file
+// that produced any per-line error is left untouched so a bad line can't
+// cause a partially-formatted file to be written back.
+func processFile(path string, diffOnly, write bool) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
+		return true
+	}
+	defer f.Close()
+
+	var buf bytes.Buffer
+	hadErr := processReader(f, &buf, path, diffOnly)
+	if hadErr {
+		return true
+	}
+
+	if !write {
+		os.Stdout.Write(buf.Bytes())
+		return false
+	}
+
+	info, err := f.Stat()
+	mode := os.FileMode(0644)
+	if err == nil {
+		mode = info.Mode()
+	}
+	if err := os.WriteFile(path, buf.Bytes(), mode); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
+		return true
+	}
+	return false
+}
+
+// processReader formats one formula per line, writing each result to w and
+// any per-line error to stderr, and keeps going on failure so a single bad
+// line in a large file doesn't stop the rest from being formatted. With
+// diffOnly set, lines whose formatted form matches the input as given are
+// dropped instead of written, so the output is just what would change.
+func processReader(r io.Reader, w io.Writer, name string, diffOnly bool) bool {
 	scanner := bufio.NewScanner(r)
 	hadErr := false
 	line := 0
@@ -58,7 +98,7 @@ func processReader(r *os.File, name string, diffOnly bool) bool {
 		trimmed := strings.TrimSpace(text)
 		if trimmed == "" {
 			if !diffOnly {
-				fmt.Println()
+				fmt.Fprintln(w)
 			}
 			continue
 		}
@@ -71,7 +111,7 @@ func processReader(r *os.File, name string, diffOnly bool) bool {
 		if diffOnly && out == trimmed {
 			continue
 		}
-		fmt.Println(out)
+		fmt.Fprintln(w, out)
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
