@@ -10,6 +10,7 @@ formula-tidy rewrites a formula's text into one consistent shape:
 
 - function names are upper-cased (`sum(` -> `SUM(`)
 - cell references are upper-cased (`a1` -> `A1`, `$b$2` -> `$B$2`)
+- R1C1-style references are upper-cased too (`r[1]c[-1]` -> `R[1]C[-1]`)
 - boolean literals are upper-cased (`true` -> `TRUE`)
 - whitespace around operators, commas, ranges and sheet references is
   normalized (`Sheet1 ! a1` -> `Sheet1!A1`)
@@ -66,15 +67,6 @@ Install the command with:
 ```
 go install github.com/mwwilliams9/formula-tidy@latest
 ```
-
-## Known limitations
-
-This is an early version. It does not yet handle:
-
-- R1C1-style references
-
-Formulas that use any of these are rejected with an error rather than
-silently mangled.
 
 ## License
 

@@ -35,6 +35,14 @@ type token struct {
 
 var cellRefRe = regexp.MustCompile(`^\$?[A-Za-z]{1,3}\$?[0-9]+$`)
 
+// r1c1Re matches a whole R1C1-style reference such as R1C1, RC, R[1]C[-1] or
+// RC[3]. r1c1PrefixRe is the same grammar without the trailing anchor, used
+// to find where such a reference ends inside a larger run of characters.
+// Excel itself refuses to let a defined name take this shape, so there's no
+// real ambiguity in treating anything matching it as a reference.
+var r1c1Re = regexp.MustCompile(`(?i)^R(\[-?[0-9]+\]|[0-9]+)?C(\[-?[0-9]+\]|[0-9]+)?$`)
+var r1c1PrefixRe = regexp.MustCompile(`(?i)^R(\[-?[0-9]+\]|[0-9]+)?C(\[-?[0-9]+\]|[0-9]+)?`)
+
 const opChars = "+-*/^&=<>%"
 
 // Format takes a formula, with or without a leading "=", and returns it with
@@ -122,6 +130,9 @@ func normalizeIdent(text string, i int, toks []token) string {
 		return upper
 	}
 	if cellRefRe.MatchString(text) {
+		return upper
+	}
+	if r1c1Re.MatchString(text) {
 		return upper
 	}
 	if upper == "TRUE" || upper == "FALSE" {
@@ -218,6 +229,11 @@ func tokenize(s string) ([]token, error) {
 			}
 			toks = append(toks, token{kOp, string(r[start:i])})
 
+		case (c == 'R' || c == 'r') && matchesR1C1(r, i):
+			match := r1c1PrefixRe.FindString(string(r[i:]))
+			toks = append(toks, token{kIdent, match})
+			i += len(match)
+
 		case isIdentStart(c):
 			start := i
 			for i < n && isIdentPart(r[i]) {
@@ -239,6 +255,19 @@ func tokenize(s string) ([]token, error) {
 		}
 	}
 	return toks, nil
+}
+
+// matchesR1C1 reports whether an R1C1-style reference starts at r[i] and
+// runs all the way to the end of an identifier, so that names like R2D2 or
+// RC10Total are left alone instead of being split at the reference-shaped
+// prefix they happen to start with.
+func matchesR1C1(r []rune, i int) bool {
+	match := r1c1PrefixRe.FindString(string(r[i:]))
+	if match == "" {
+		return false
+	}
+	end := i + len(match)
+	return end >= len(r) || !isIdentPart(r[end])
 }
 
 func isDigit(c rune) bool {
