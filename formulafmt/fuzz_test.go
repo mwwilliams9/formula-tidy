@@ -53,3 +53,44 @@ func FuzzTokenize(f *testing.F) {
 		}
 	})
 }
+
+// FuzzFormatIdempotent checks that formatting an already-formatted formula
+// leaves it unchanged. The -diff flag depends on this: it treats a formula
+// as settled once Format(f) == f, so any input that keeps changing under
+// repeated formatting would make -diff loop forever on real input instead
+// of converging.
+func FuzzFormatIdempotent(f *testing.F) {
+	seeds := []string{
+		"=sum(a1:a10)",
+		"sum(a1,a2,a3)",
+		"=1+2",
+		"=A1*-1",
+		"=50%+1",
+		`=if(a1>10,"big","small")`,
+		"=$a$1+b2",
+		"=sheet1!a1+1",
+		"='My Sheet'!a1+1",
+		"='O''Brien'!a1",
+		"={1,2;3,4}",
+		"=r[1]c[-1]",
+		"=RC/RC[-1]",
+		"=R2D2+1",
+	}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+
+	f.Fuzz(func(t *testing.T, s string) {
+		once, err := Format(s)
+		if err != nil {
+			return
+		}
+		twice, err := Format(once)
+		if err != nil {
+			t.Fatalf("Format(%q) succeeded but re-formatting its own output %q failed: %v", s, once, err)
+		}
+		if once != twice {
+			t.Fatalf("Format not idempotent for %q: first pass %q, second pass %q", s, once, twice)
+		}
+	})
+}
